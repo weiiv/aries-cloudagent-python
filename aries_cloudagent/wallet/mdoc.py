@@ -15,19 +15,20 @@ from ..resolver.did_resolver import DIDResolver
 from .default_verification_key_strategy import BaseVerificationKeyStrategy
 from .base import BaseWallet
 from .key_type import ED25519
-from .util import b64_to_bytes, bytes_to_b64
+from .util import b64_to_bytes, bytes_to_b64, bytes_to_b58
 
 import cryptography
 import random
 import hashlib
 import os
+import re
 import datetime
 import cbor2
 from cryptography import x509
 from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
-
+from cbor_diag import cbor2diag
 from cwt import COSEKey
 from pycose.headers import Algorithm, KID
 from pycose.keys import CoseKey
@@ -337,7 +338,7 @@ class MsoVerifier:
 
     @property
     def raw_public_keys(self) -> bytes:
-        """Extract fpublic key rom x509 certificates"""
+        """Extract public key from x509 certificates"""
         _mixed_heads = self.object.phdr.items() | self.object.uhdr.items()
         for h, v in _mixed_heads:
             if h.identifier == 33:
@@ -381,7 +382,15 @@ async def mdoc_verify(profile: Profile, mdoc_str: str) -> MdocVerifyResult:
     valid = mso_verifier.verify_signature()
 
     headers = {}
-    payload = {}
-    verification_method = ""
+    mdoc_str = str(cbor2diag(mdoc_bytes)).replace("\n", "").replace("h'", "'")
+    mdoc_str = re.sub(r'\s+(?=(?:[^"]*"[^"]*")*[^"]*$)', "", mdoc_str)
+    payload = {"mdoc": mdoc_str}
+
+    public_bytes = mso_verifier.public_key.public_bytes_raw()
+    verkey = bytes_to_b58(public_bytes)
+    async with profile.session() as session:
+        wallet = session.inject(BaseWallet)
+        did_info = await wallet.get_local_did_for_verkey(verkey)
+        verification_method = did_info.did
 
     return MdocVerifyResult(headers, payload, valid, verification_method)
