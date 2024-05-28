@@ -5,7 +5,7 @@ For Connection, DIDExchange and OutOfBand Manager.
 
 import json
 import logging
-from typing import List, Optional, Sequence, Text, Tuple, Union
+from typing import Dict, List, Optional, Sequence, Text, Tuple, Union
 
 import pydid
 from base58 import b58decode
@@ -46,14 +46,14 @@ from ..protocols.out_of_band.v1_0.messages.invitation import InvitationMessage
 from ..resolver.base import ResolverError
 from ..resolver.did_resolver import DIDResolver
 from ..storage.base import BaseStorage
-from ..storage.error import StorageDuplicateError, StorageError, StorageNotFoundError
+from ..storage.error import StorageDuplicateError, StorageNotFoundError
 from ..storage.record import StorageRecord
 from ..transport.inbound.receipt import MessageReceipt
 from ..utils.multiformats import multibase, multicodec
 from ..wallet.base import BaseWallet
 from ..wallet.crypto import create_keypair, seed_to_did
-from ..wallet.did_info import DIDInfo, KeyInfo
-from ..wallet.did_method import PEER2, PEER4, SOV
+from ..wallet.did_info import INVITATION_REUSE_KEY, DIDInfo, KeyInfo
+from ..wallet.did_method import PEER2, PEER4, SOV, DIDMethod
 from ..wallet.error import WalletNotFoundError
 from ..wallet.key_type import ED25519
 from ..wallet.util import b64_to_bytes, bytes_to_b58
@@ -89,7 +89,13 @@ class BaseConnectionManager:
             multicodec.wrap("ed25519-pub", b58decode(key_info.verkey)), "base58btc"
         )
 
-    async def long_did_peer_4_to_short(self, long_dp4: str) -> DIDInfo:
+    def long_did_peer_to_short(self, long_did: str) -> str:
+        """Convert did:peer:4 long format to short format and return."""
+
+        short_did_peer = long_to_short(long_did)
+        return short_did_peer
+
+    async def long_did_peer_4_to_short(self, long_dp4: str) -> str:
         """Convert did:peer:4 long format to short format and store in wallet."""
 
         async with self._profile.session() as session:
@@ -113,6 +119,7 @@ class BaseConnectionManager:
         self,
         svc_endpoints: Optional[Sequence[str]] = None,
         mediation_records: Optional[List[MediationRecord]] = None,
+        metadata: Optional[Dict] = None,
     ) -> DIDInfo:
         """Create a did:peer:4 DID for a connection.
 
@@ -153,14 +160,22 @@ class BaseConnectionManager:
         async with self._profile.session() as session:
             wallet = session.inject(BaseWallet)
             key = await wallet.create_key(ED25519)
-            key_spec = KeySpec_DP4(multikey=self._key_info_to_multikey(key))
+            key_spec = KeySpec_DP4(
+                multikey=self._key_info_to_multikey(key),
+                relationships=["authentication", "keyAgreement"],
+            )
             input_doc = input_doc_from_keys_and_services(
                 keys=[key_spec], services=services
             )
             did = encode(input_doc)
 
+            did_metadata = metadata if metadata else {}
             did_info = DIDInfo(
-                did=did, method=PEER4, verkey=key.verkey, metadata={}, key_type=ED25519
+                did=did,
+                method=PEER4,
+                verkey=key.verkey,
+                metadata=did_metadata,
+                key_type=ED25519,
             )
             await wallet.store_did(did_info)
 
@@ -170,6 +185,7 @@ class BaseConnectionManager:
         self,
         svc_endpoints: Optional[Sequence[str]] = None,
         mediation_records: Optional[List[MediationRecord]] = None,
+        metadata: Optional[Dict] = None,
     ) -> DIDInfo:
         """Create a did:peer:2 DID for a connection.
 
@@ -215,11 +231,38 @@ class BaseConnectionManager:
                 [KeySpec.verification(self._key_info_to_multikey(key))], services
             )
 
+            did_metadata = metadata if metadata else {}
             did_info = DIDInfo(
-                did=did, method=PEER2, verkey=key.verkey, metadata={}, key_type=ED25519
+                did=did,
+                method=PEER2,
+                verkey=key.verkey,
+                metadata=did_metadata,
+                key_type=ED25519,
             )
             await wallet.store_did(did_info)
 
+        return did_info
+
+    async def fetch_invitation_reuse_did(
+        self,
+        did_method: DIDMethod,
+    ) -> Optional[DIDInfo]:
+        """Fetch a DID from the wallet to use across multiple invitations.
+
+        Args:
+            did_method: The DID method used (e.g. PEER2 or PEER4)
+
+        Returns:
+            The `DIDInfo` instance, or "None" if no DID is found
+        """
+        did_info = None
+        async with self._profile.session() as session:
+            wallet = session.inject(BaseWallet)
+            # TODO Iterating through all DIDs is problematic
+            did_list = await wallet.get_local_dids()
+            for did in did_list:
+                if did.method == did_method and INVITATION_REUSE_KEY in did.metadata:
+                    return did
         return did_info
 
     async def create_did_document(
@@ -314,7 +357,7 @@ class BaseConnectionManager:
                 await storage.update_record(record, doc, {"did": did})
 
         await self.remove_keys_for_did(did)
-        await self.record_did(did)
+        await self.record_keys_for_resolvable_did(did)
 
     async def add_key_for_did(self, did: str, key: str):
         """Store a verkey for lookup against a DID.
@@ -346,7 +389,10 @@ class BaseConnectionManager:
         async with self._profile.session() as session:
             storage: BaseStorage = session.inject(BaseStorage)
             record = await storage.find_record(self.RECORD_TYPE_DID_KEY, {"key": key})
-        return record.tags["did"]
+        ret_did = record.tags["did"]
+        if ret_did.startswith("did:peer:4"):
+            ret_did = self.long_did_peer_to_short(ret_did)
+        return ret_did
 
     async def remove_keys_for_did(self, did: str):
         """Remove all keys associated with a DID.
@@ -441,8 +487,8 @@ class BaseConnectionManager:
             [self._extract_key_material_in_base58_format(key) for key in routing_keys],
         )
 
-    async def record_did(self, did: str):
-        """Record DID for later use.
+    async def record_keys_for_resolvable_did(self, did: str):
+        """Record the keys for a public DID.
 
         This is required to correlate sender verkeys back to a connection.
         """
@@ -739,6 +785,21 @@ class BaseConnectionManager:
             targets = await self.fetch_connection_targets(connection)
         return targets
 
+    async def clear_connection_targets_cache(self, connection_id: str):
+        """Clear the connection targets cache for a given connection ID.
+
+        Historically, connections have not been updatable after the protocol
+        completes. However, with DID Rotation, we need to be able to update
+        the connection targets and clear the cache of targets.
+        """
+        # TODO it would be better to include the DIDs of the connection in the
+        # target cache key This solution only works when using whole cluster
+        # caching or have only a single instance with local caching
+        cache = self._profile.inject_or(BaseCache)
+        if cache:
+            cache_key = f"connection_target::{connection_id}"
+            await cache.clear(cache_key)
+
     def diddoc_connection_targets(
         self,
         doc: Optional[Union[DIDDoc, dict]],
@@ -793,9 +854,9 @@ class BaseConnectionManager:
 
     async def find_connection(
         self,
-        their_did: str,
+        their_did: Optional[str],
         my_did: Optional[str] = None,
-        my_verkey: Optional[str] = None,
+        parent_thread_id: Optional[str] = None,
         auto_complete=False,
     ) -> Optional[ConnRecord]:
         """Look up existing connection information for a sender verkey.
@@ -803,7 +864,7 @@ class BaseConnectionManager:
         Args:
             their_did: Their DID
             my_did: My DID
-            my_verkey: My verkey
+            parent_thread_id: Parent thread ID
             auto_complete: Should this connection automatically be promoted to active
 
         Returns:
@@ -834,16 +895,13 @@ class BaseConnectionManager:
                         connection_id=connection.connection_id
                     )
 
-        if not connection and my_verkey:
-            try:
-                async with self._profile.session() as session:
-                    connection = await ConnRecord.retrieve_by_invitation_key(
-                        session,
-                        my_verkey,
-                        their_role=ConnRecord.Role.REQUESTER.rfc160,
-                    )
-            except StorageError:
-                pass
+        if not connection and parent_thread_id:
+            async with self._profile.session() as session:
+                connection = await ConnRecord.retrieve_by_invitation_msg_id(
+                    session,
+                    parent_thread_id,
+                    their_role=ConnRecord.Role.REQUESTER.rfc160,
+                )
 
         return connection
 
@@ -910,14 +968,12 @@ class BaseConnectionManager:
 
         """
 
+        receipt.sender_did = None
         if receipt.sender_verkey:
             try:
                 receipt.sender_did = await self.find_did_for_key(receipt.sender_verkey)
             except StorageNotFoundError:
-                self._logger.warning(
-                    "No corresponding DID found for sender verkey: %s",
-                    receipt.sender_verkey,
-                )
+                pass
 
         if receipt.recipient_verkey:
             try:
@@ -936,13 +992,13 @@ class BaseConnectionManager:
                     receipt.recipient_verkey,
                 )
             except WalletNotFoundError:
-                self._logger.warning(
+                self._logger.debug(
                     "No corresponding DID found for recipient verkey: %s",
                     receipt.recipient_verkey,
                 )
 
         return await self.find_connection(
-            receipt.sender_did, receipt.recipient_did, receipt.recipient_verkey, True
+            receipt.sender_did, receipt.recipient_did, receipt.parent_thread_id, True
         )
 
     async def get_endpoints(self, conn_id: str) -> Tuple[Optional[str], Optional[str]]:
@@ -959,6 +1015,7 @@ class BaseConnectionManager:
             connection = await ConnRecord.retrieve_by_id(session, conn_id)
             wallet = session.inject(BaseWallet)
             my_did_info = await wallet.get_local_did(connection.my_did)
+
         my_endpoint = my_did_info.metadata.get(
             "endpoint",
             self._profile.settings.get("default_endpoint"),

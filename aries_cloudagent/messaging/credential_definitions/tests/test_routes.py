@@ -1,7 +1,10 @@
 from unittest import IsolatedAsyncioTestCase
+
 from aries_cloudagent.tests import mock
 
 from ....admin.request_context import AdminRequestContext
+from ....askar.profile_anon import AskarAnoncredsProfile
+from ....connections.models.conn_record import ConnRecord
 from ....core.in_memory import InMemoryProfile
 from ....indy.issuer import IndyIssuer
 from ....ledger.base import BaseLedger
@@ -11,10 +14,7 @@ from ....ledger.multiple_ledger.ledger_requests_executor import (
 from ....multitenant.base import BaseMultitenantManager
 from ....multitenant.manager import MultitenantManager
 from ....storage.base import BaseStorage
-
 from .. import routes as test_module
-from ....connections.models.conn_record import ConnRecord
-
 
 SCHEMA_ID = "WgWxqztrNooG92RXvxSTWv:2:schema_name:1.0"
 CRED_DEF_ID = "WgWxqztrNooG92RXvxSTWv:3:CL:20:tag"
@@ -23,7 +23,11 @@ CRED_DEF_ID = "WgWxqztrNooG92RXvxSTWv:3:CL:20:tag"
 class TestCredentialDefinitionRoutes(IsolatedAsyncioTestCase):
     def setUp(self):
         self.session_inject = {}
-        self.profile = InMemoryProfile.test_profile()
+        self.profile = InMemoryProfile.test_profile(
+            settings={
+                "admin.admin_api_key": "secret-key",
+            }
+        )
         self.profile_injector = self.profile.context.injector
 
         self.ledger = mock.create_autospec(BaseLedger)
@@ -61,6 +65,7 @@ class TestCredentialDefinitionRoutes(IsolatedAsyncioTestCase):
             match_info={},
             query={},
             __getitem__=lambda _, k: self.request_dict[k],
+            headers={"x-api-key": "secret-key"},
         )
 
     async def test_send_credential_definition(self):
@@ -384,6 +389,47 @@ class TestCredentialDefinitionRoutes(IsolatedAsyncioTestCase):
         self.request.match_info = {"cred_def_id": CRED_DEF_ID}
         self.context.injector.clear_binding(BaseLedger)
         self.profile_injector.clear_binding(BaseLedger)
+        with self.assertRaises(test_module.web.HTTPForbidden):
+            await test_module.credential_definitions_get_credential_definition(
+                self.request
+            )
+
+    async def test_credential_definition_endpoints_wrong_profile_403(self):
+        self.profile = InMemoryProfile.test_profile(
+            settings={"wallet-type": "askar", "admin.admin_api_key": "secret-key"},
+            profile_class=AskarAnoncredsProfile,
+        )
+        self.context = AdminRequestContext.test_context({}, self.profile)
+        self.request_dict = {
+            "context": self.context,
+        }
+        self.request = mock.MagicMock(
+            app={},
+            match_info={},
+            query={},
+            __getitem__=lambda _, k: self.request_dict[k],
+            context=self.context,
+            headers={"x-api-key": "secret-key"},
+        )
+        self.request.json = mock.CoroutineMock(
+            return_value={
+                "schema_id": "WgWxqztrNooG92RXvxSTWv:2:schema_name:1.0",
+                "support_revocation": False,
+                "tag": "tag",
+            }
+        )
+
+        self.request.query = {"create_transaction_for_endorser": "false"}
+        with self.assertRaises(test_module.web.HTTPForbidden):
+            await test_module.credential_definitions_send_credential_definition(
+                self.request
+            )
+
+        self.request.match_info = {"cred_def_id": CRED_DEF_ID}
+        with self.assertRaises(test_module.web.HTTPForbidden):
+            await test_module.credential_definitions_created(self.request)
+
+        self.request.match_info = {"cred_def_id": CRED_DEF_ID}
         with self.assertRaises(test_module.web.HTTPForbidden):
             await test_module.credential_definitions_get_credential_definition(
                 self.request

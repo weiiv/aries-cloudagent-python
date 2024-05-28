@@ -256,6 +256,7 @@ class RevocationManager:
             if limit_crids:
                 crids = crids.intersection(limit_crids)
             if crids:
+                crids = list(crids)
                 (delta_json, failed_crids) = await issuer.revoke_credentials(
                     issuer_rr_rec.cred_def_id,
                     issuer_rr_rec.revoc_reg_id,
@@ -294,6 +295,9 @@ class RevocationManager:
                         )
                     else:
                         rev_entry_resp = await issuer_rr_upd.send_entry(self._profile)
+                        await notify_revocation_published_event(
+                            self._profile, issuer_rr_rec.revoc_reg_id, crids
+                        )
                 published = sorted(crid for crid in crids if crid not in failed_crids)
                 result[issuer_rr_rec.revoc_reg_id] = published
 
@@ -334,10 +338,11 @@ class RevocationManager:
         async with self._profile.transaction() as txn:
             issuer_rr_recs = await IssuerRevRegRecord.query_by_pending(txn)
             for issuer_rr_rec in issuer_rr_recs:
+                if purge and issuer_rr_rec.revoc_reg_id not in purge:
+                    continue
                 rrid = issuer_rr_rec.revoc_reg_id
                 await issuer_rr_rec.clear_pending(txn, (purge or {}).get(rrid))
-                if issuer_rr_rec.pending_pub:
-                    result[rrid] = issuer_rr_rec.pending_pub
+                result[rrid] = issuer_rr_rec.pending_pub
                 notify.append(rrid)
             await txn.commit()
 

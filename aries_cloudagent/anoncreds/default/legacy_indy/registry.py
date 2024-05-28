@@ -179,14 +179,14 @@ class LegacyIndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
                         {"ledger_id": ledger_id},
                     )
 
-                anonscreds_schema = AnonCredsSchema(
+                anoncreds_schema = AnonCredsSchema(
                     issuer_id=schema["id"].split(":")[0],
                     attr_names=schema["attrNames"],
                     name=schema["name"],
                     version=schema["version"],
                 )
                 result = GetSchemaResult(
-                    schema=anonscreds_schema,
+                    schema=anoncreds_schema,
                     schema_id=schema["id"],
                     resolution_metadata={"ledger_id": ledger_id},
                     schema_metadata={"seqNo": schema["seqNo"]},
@@ -692,7 +692,7 @@ class LegacyIndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
 
     def _indexes_to_bit_array(self, indexes: List[int], size: int) -> List[int]:
         """Turn a sequence of indexes into a full state bit array."""
-        return [1 if index in indexes else 0 for index in range(1, size + 1)]
+        return [1 if index in indexes else 0 for index in range(0, size + 1)]
 
     async def _get_ledger(self, profile: Profile, rev_reg_def_id: str):
         async with profile.session() as session:
@@ -1084,7 +1084,7 @@ class LegacyIndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
                 '>>> rev_reg_delta.get("value"): %s', rev_reg_delta.get("value")
             )
 
-            # if we had any revocation discrepencies, check the accumulator value
+            # if we had any revocation discrepancies, check the accumulator value
             if rec_count > 0:
                 if (rev_list.current_accumulator and rev_reg_delta.get("value")) and (
                     rev_list.current_accumulator != rev_reg_delta["value"]["accum"]
@@ -1123,7 +1123,7 @@ class LegacyIndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
 
     async def txn_submit(
         self,
-        profile: Profile,
+        ledger: BaseLedger,
         ledger_transaction: str,
         sign: bool = None,
         taa_accept: bool = None,
@@ -1131,10 +1131,6 @@ class LegacyIndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
         write_ledger: bool = True,
     ) -> str:
         """Submit a transaction to the ledger."""
-        ledger = profile.inject(BaseLedger)
-
-        if not ledger:
-            raise LedgerError("No ledger available")
 
         try:
             async with ledger:

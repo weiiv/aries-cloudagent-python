@@ -41,12 +41,12 @@ Feature: RFC 0454 Aries agent present proof
       @WalletType_Askar
       Examples:
          | issuer | Acme_capabilities                      | Acme_extra        | Bob_capabilities   | Bob_extra         | Schema_name       | Credential_data   | Proof_request     |
-         | Faber  | --public-did --did-exchange            | --emit-did-peer-2 | --did-exchange     | --emit-did-peer-2 | driverslicense_v2 | Data_DL_MaxValues | DL_age_over_19_v2 |
+         | Faber  | --public-did --did-exchange --emit-did-peer-2            | | --did-exchange --emit-did-peer-2     | | driverslicense_v2 | Data_DL_MaxValues | DL_age_over_19_v2 |
 
       @WalletType_Askar_AnonCreds
       Examples:
          | issuer | Acme_capabilities                          | Acme_extra        | Bob_capabilities              | Bob_extra         | Schema_name       | Credential_data   | Proof_request     |
-         | Faber  | --public-did --wallet-type askar-anoncreds | --emit-did-peer-2 | --wallet-type askar-anoncreds | --emit-did-peer-2 | driverslicense_v2 | Data_DL_MaxValues | DL_age_over_19_v2 |
+         | Faber  | --public-did --wallet-type askar-anoncreds --emit-did-peer-2 | | --wallet-type askar-anoncreds --emit-did-peer-2 | | driverslicense_v2 | Data_DL_MaxValues | DL_age_over_19_v2 |
 
 
    @T001.1-RFC0454
@@ -74,7 +74,7 @@ Feature: RFC 0454 Aries agent present proof
          | issuer | Acme_capabilities                      | Bob_capabilities          | Schema_name       | Credential_data   | Proof_request     |
          | Faber  | --public-did --wallet-type askar-anoncreds | --wallet-type askar-anoncreds | driverslicense_v2 | Data_DL_MaxValues | DL_age_over_19_v2 |
          | Faber  | --public-did --wallet-type askar-anoncreds | --wallet-type askar-anoncreds | driverslicense_v2 | Data_DL_MaxValues | DL_age_over_19_v2 |
-         | Acme   | --public-did --mediation --multitenant | --mediation --multitenant | driverslicense_v2 | Data_DL_MaxValues | DL_age_over_19_v2 |
+         | Acme   | --public-did --mediation --multitenant --wallet-type askar-anoncreds | --mediation --multitenant --wallet-type askar-anoncreds | driverslicense_v2 | Data_DL_MaxValues | DL_age_over_19_v2 |
 
 
    @T001.2-RFC0454
@@ -262,3 +262,28 @@ Feature: RFC 0454 Aries agent present proof
       Examples:
          | issuer1 | Acme1_capabilities        | issuer2 | Acme2_capabilities | Bob_cap | Schema_name_1     | Credential_data_1 | Schema_name_2 | Credential_data_2 | Proof_request                             |
          | Acme1   | --revocation --public-did --wallet-type askar-anoncreds | Acme2   | --public-did --wallet-type askar-anoncreds | --wallet-type askar-anoncreds | driverslicense_v2 | Data_DL_MaxValues | health_id     | Data_DL_MaxValues | DL_age_over_19_v2_with_health_id_no_revoc |
+
+   @T003-RFC0454.4
+   Scenario Outline: Present Proof for a credential where multiple credentials are issued and all but one are revoked
+      Given we have "3" agents
+         | name  | role     | capabilities         |
+         | Acme1 | issuer1  | <Acme1_capabilities> |
+         | Faber | verifier | <Acme1_capabilities> |
+         | Bob   | prover   | <Bob_cap>   |
+      And "<issuer1>" and "Bob" have an existing connection
+      And "Bob" has an issued <Schema_name_1> credential <Credential_data_1> from "<issuer1>"
+      And "<issuer1>" revokes the credential
+      And "Bob" has another issued <Schema_name_1> credential <Credential_data_1> from "<issuer1>"
+      And "Faber" and "Bob" have an existing connection
+      When "Faber" sends a request with explicit revocation status for proof presentation <Proof_request> to "Bob"
+      Then "Faber" has the proof verified
+
+      @WalletType_Askar
+      Examples:
+         | issuer1 | Acme1_capabilities        | Bob_cap | Schema_name_1     | Credential_data_1 | Proof_request     |
+         | Acme1   | --revocation --public-did |         | driverslicense_v2 | Data_DL_MaxValues | DL_age_over_19_v2 |
+
+      @WalletType_Askar_AnonCreds
+      Examples:
+         | issuer1 | Acme1_capabilities                                      | Bob_cap                       | Schema_name_1     | Credential_data_1 | Proof_request     |
+         | Acme1   | --revocation --public-did --wallet-type askar-anoncreds | --wallet-type askar-anoncreds | driverslicense_v2 | Data_DL_MaxValues | DL_age_over_19_v2 |

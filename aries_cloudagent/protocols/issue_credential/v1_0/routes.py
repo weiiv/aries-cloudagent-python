@@ -12,6 +12,7 @@ from aiohttp_apispec import (
 )
 from marshmallow import fields, validate
 
+from ....admin.decorators.auth import tenant_authentication
 from ....admin.request_context import AdminRequestContext
 from ....connections.models.conn_record import ConnRecord
 from ....core.profile import Profile
@@ -377,9 +378,11 @@ class V10CredentialExchangeAutoRemoveRequestSchema(OpenAPISchema):
 @docs(
     tags=["issue-credential v1.0"],
     summary="Fetch all credential exchange records",
+    deprecated=True,
 )
 @querystring_schema(V10CredentialExchangeListQueryStringSchema)
 @response_schema(V10CredentialExchangeListResultSchema(), 200, description="")
+@tenant_authentication
 async def credential_exchange_list(request: web.BaseRequest):
     """Request handler for searching credential exchange records.
 
@@ -417,9 +420,11 @@ async def credential_exchange_list(request: web.BaseRequest):
 @docs(
     tags=["issue-credential v1.0"],
     summary="Fetch a single credential exchange record",
+    deprecated=True,
 )
 @match_info_schema(CredExIdMatchInfoSchema())
 @response_schema(V10CredentialExchangeSchema(), 200, description="")
+@tenant_authentication
 async def credential_exchange_retrieve(request: web.BaseRequest):
     """Request handler for fetching single credential exchange record.
 
@@ -463,9 +468,11 @@ async def credential_exchange_retrieve(request: web.BaseRequest):
         "Create a credential record without "
         "sending (generally for use with Out-Of-Band)"
     ),
+    deprecated=True,
 )
 @request_schema(V10CredentialCreateSchema())
 @response_schema(V10CredentialExchangeSchema(), 200, description="")
+@tenant_authentication
 async def credential_exchange_create(request: web.BaseRequest):
     """Request handler for creating a credential from attr values.
 
@@ -541,9 +548,11 @@ async def credential_exchange_create(request: web.BaseRequest):
 @docs(
     tags=["issue-credential v1.0"],
     summary="Send holder a credential, automating entire flow",
+    deprecated=True,
 )
 @request_schema(V10CredentialProposalRequestMandSchema())
 @response_schema(V10CredentialExchangeSchema(), 200, description="")
+@tenant_authentication
 async def credential_exchange_send(request: web.BaseRequest):
     """Request handler for sending credential from issuer to holder from attr values.
 
@@ -642,9 +651,11 @@ async def credential_exchange_send(request: web.BaseRequest):
 @docs(
     tags=["issue-credential v1.0"],
     summary="Send issuer a credential proposal",
+    deprecated=True,
 )
 @request_schema(V10CredentialProposalRequestOptSchema())
 @response_schema(V10CredentialExchangeSchema(), 200, description="")
+@tenant_authentication
 async def credential_exchange_send_proposal(request: web.BaseRequest):
     """Request handler for sending credential proposal.
 
@@ -764,9 +775,11 @@ async def _create_free_offer(
 @docs(
     tags=["issue-credential v1.0"],
     summary="Create a credential offer, independent of any proposal or connection",
+    deprecated=True,
 )
 @request_schema(V10CredentialConnFreeOfferRequestSchema())
 @response_schema(V10CredentialExchangeSchema(), 200, description="")
+@tenant_authentication
 async def credential_exchange_create_free_offer(request: web.BaseRequest):
     """Request handler for creating free credential offer.
 
@@ -837,9 +850,11 @@ async def credential_exchange_create_free_offer(request: web.BaseRequest):
 @docs(
     tags=["issue-credential v1.0"],
     summary="Send holder a credential offer, independent of any proposal",
+    deprecated=True,
 )
 @request_schema(V10CredentialFreeOfferRequestSchema())
 @response_schema(V10CredentialExchangeSchema(), 200, description="")
+@tenant_authentication
 async def credential_exchange_send_free_offer(request: web.BaseRequest):
     """Request handler for sending free credential offer.
 
@@ -925,10 +940,12 @@ async def credential_exchange_send_free_offer(request: web.BaseRequest):
 @docs(
     tags=["issue-credential v1.0"],
     summary="Send holder a credential offer in reference to a proposal with preview",
+    deprecated=True,
 )
 @match_info_schema(CredExIdMatchInfoSchema())
 @request_schema(V10CredentialBoundOfferRequestSchema())
 @response_schema(V10CredentialExchangeSchema(), 200, description="")
+@tenant_authentication
 async def credential_exchange_send_bound_offer(request: web.BaseRequest):
     """Request handler for sending bound credential offer.
 
@@ -1024,10 +1041,12 @@ async def credential_exchange_send_bound_offer(request: web.BaseRequest):
 @docs(
     tags=["issue-credential v1.0"],
     summary="Send issuer a credential request",
+    deprecated=True,
 )
 @match_info_schema(CredExIdMatchInfoSchema())
 @request_schema(V10CredentialExchangeAutoRemoveRequestSchema())
 @response_schema(V10CredentialExchangeSchema(), 200, description="")
+@tenant_authentication
 async def credential_exchange_send_request(request: web.BaseRequest):
     """Request handler for sending credential request.
 
@@ -1139,10 +1158,12 @@ async def credential_exchange_send_request(request: web.BaseRequest):
 @docs(
     tags=["issue-credential v1.0"],
     summary="Send holder a credential",
+    deprecated=True,
 )
 @match_info_schema(CredExIdMatchInfoSchema())
 @request_schema(V10CredentialIssueRequestSchema())
 @response_schema(V10CredentialExchangeSchema(), 200, description="")
+@tenant_authentication
 async def credential_exchange_issue(request: web.BaseRequest):
     """Request handler for sending credential.
 
@@ -1234,10 +1255,12 @@ async def credential_exchange_issue(request: web.BaseRequest):
 @docs(
     tags=["issue-credential v1.0"],
     summary="Store a received credential",
+    deprecated=True,
 )
 @match_info_schema(CredExIdMatchInfoSchema())
 @request_schema(V10CredentialStoreRequestSchema())
 @response_schema(V10CredentialExchangeSchema(), 200, description="")
+@tenant_authentication
 async def credential_exchange_store(request: web.BaseRequest):
     """Request handler for storing credential.
 
@@ -1338,10 +1361,12 @@ async def credential_exchange_store(request: web.BaseRequest):
 @docs(
     tags=["issue-credential v1.0"],
     summary="Send a problem report for credential exchange",
+    deprecated=True,
 )
 @match_info_schema(CredExIdMatchInfoSchema())
 @request_schema(V10CredentialProblemReportRequestSchema())
 @response_schema(IssueCredentialModuleResponseSchema(), 200, description="")
+@tenant_authentication
 async def credential_exchange_problem_report(request: web.BaseRequest):
     """Request handler for sending problem report.
 
@@ -1384,9 +1409,11 @@ async def credential_exchange_problem_report(request: web.BaseRequest):
 @docs(
     tags=["issue-credential v1.0"],
     summary="Remove an existing credential exchange record",
+    deprecated=True,
 )
 @match_info_schema(CredExIdMatchInfoSchema())
 @response_schema(IssueCredentialModuleResponseSchema(), 200, description="")
+@tenant_authentication
 async def credential_exchange_remove(request: web.BaseRequest):
     """Request handler for removing a credential exchange record.
 

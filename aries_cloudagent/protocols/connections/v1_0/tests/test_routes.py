@@ -1,22 +1,27 @@
 import json
-
-from unittest.mock import ANY
 from unittest import IsolatedAsyncioTestCase
+from unittest.mock import ANY
+
 from aries_cloudagent.tests import mock
 
 from .....admin.request_context import AdminRequestContext
 from .....cache.base import BaseCache
 from .....cache.in_memory import InMemoryCache
 from .....connections.models.conn_record import ConnRecord
+from .....core.in_memory import InMemoryProfile
 from .....storage.error import StorageNotFoundError
-
 from .. import routes as test_module
 
 
 class TestConnectionRoutes(IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.session_inject = {}
-        self.context = AdminRequestContext.test_context(self.session_inject)
+        profile = InMemoryProfile.test_profile(
+            settings={
+                "admin.admin_api_key": "secret-key",
+            }
+        )
+        self.context = AdminRequestContext.test_context(self.session_inject, profile)
         self.request_dict = {
             "context": self.context,
             "outbound_message_router": mock.CoroutineMock(),
@@ -26,13 +31,14 @@ class TestConnectionRoutes(IsolatedAsyncioTestCase):
             match_info={},
             query={},
             __getitem__=lambda _, k: self.request_dict[k],
+            headers={"x-api-key": "secret-key"},
         )
 
     async def test_connections_list(self):
         self.request.query = {
             "invitation_id": "dummy",  # exercise tag filter assignment
             "their_role": ConnRecord.Role.REQUESTER.rfc160,
-            "connection_protocol": ConnRecord.Protocol.RFC_0160.aries_protocol,
+            "connection_protocol": "connections/1.0",
             "invitation_key": "some-invitation-key",
             "their_public_did": "a_public_did",
             "invitation_msg_id": "dummy_msg",
@@ -99,7 +105,7 @@ class TestConnectionRoutes(IsolatedAsyncioTestCase):
                     },
                     post_filter_positive={
                         "their_role": list(ConnRecord.Role.REQUESTER.value),
-                        "connection_protocol": ConnRecord.Protocol.RFC_0160.aries_protocol,
+                        "connection_protocol": "connections/1.0",
                     },
                     alt=True,
                 )

@@ -7,26 +7,26 @@ import random
 import sys
 import time
 from typing import List
+
 import yaml
-
-from qrcode import QRCode
-
 from aiohttp import ClientError
+from qrcode import QRCode
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from runners.support.agent import (  # noqa:E402
-    DemoAgent,
-    default_genesis_txns,
-    start_mediator_agent,
-    connect_wallet_to_mediator,
-    start_endorser_agent,
-    connect_wallet_to_endorser,
-    WALLET_TYPE_INDY,
     CRED_FORMAT_INDY,
     CRED_FORMAT_JSON_LD,
+    CRED_FORMAT_VC_DI,
     DID_METHOD_KEY,
     KEY_TYPE_BLS,
+    WALLET_TYPE_INDY,
+    DemoAgent,
+    connect_wallet_to_endorser,
+    connect_wallet_to_mediator,
+    default_genesis_txns,
+    start_endorser_agent,
+    start_mediator_agent,
 )
 from runners.support.utils import (  # noqa:E402
     check_requires,
@@ -35,7 +35,6 @@ from runners.support.utils import (  # noqa:E402
     log_status,
     log_timer,
 )
-
 
 CRED_PREVIEW_TYPE = "https://didcomm.org/issue-credential/2.0/credential-preview"
 SELF_ATTESTED = os.getenv("SELF_ATTESTED")
@@ -61,6 +60,9 @@ class AriesAgent(DemoAgent):
         log_file: str = None,
         log_config: str = None,
         log_level: str = None,
+        reuse_connections: bool = False,
+        multi_use_invitations: bool = False,
+        public_did_connections: bool = False,
         extra_args: List[str] = [],
         **kwargs,
     ):
@@ -90,6 +92,9 @@ class AriesAgent(DemoAgent):
             log_file=log_file,
             log_config=log_config,
             log_level=log_level,
+            reuse_connections=reuse_connections,
+            multi_use_invitations=multi_use_invitations,
+            public_did_connections=public_did_connections,
             **kwargs,
         )
         self.connection_id = None
@@ -108,19 +113,20 @@ class AriesAgent(DemoAgent):
         return self._connection_ready.done() and self._connection_ready.result()
 
     async def handle_oob_invitation(self, message):
-        print("handle_oob_invitation()")
         pass
 
     async def handle_out_of_band(self, message):
-        print("handle_out_of_band()")
         pass
 
     async def handle_connection_reuse(self, message):
         # we are reusing an existing connection, set our status to the existing connection
-        if not self._connection_ready.done():
-            self.connection_id = message["connection_id"]
-            self.log("Connected")
-            self._connection_ready.set_result(True)
+        if self._connection_ready is not None:
+            if not self._connection_ready.done():
+                self.connection_id = message["connection_id"]
+                self.log("Connected")
+                self._connection_ready.set_result(True)
+        else:
+            self.log("Connected on existing connection")
 
     async def handle_connection_reuse_accepted(self, message):
         # we are reusing an existing connection, set our status to the existing connection
@@ -144,9 +150,16 @@ class AriesAgent(DemoAgent):
         if (not self.connection_id) and message["rfc23_state"] == "invitation-received":
             self.connection_id = conn_id
 
-        if conn_id == self.connection_id:
+        if (
+            conn_id == self.connection_id
+            or self.reuse_connections
+            or self.multi_use_invitations
+        ):
             # inviter or invitee:
-            if message["rfc23_state"] in ["completed", "response-sent"]:
+            if message["state"] == "deleted":
+                # connection reuse - invitation is getting deleted - ignore
+                pass
+            elif message["rfc23_state"] in ["completed", "response-sent"]:
                 if not self._connection_ready.done():
                     self.log("Connected")
                     self._connection_ready.set_result(True)
@@ -281,6 +294,10 @@ class AriesAgent(DemoAgent):
                 await self.admin_POST(
                     f"/issue-credential-2.0/records/{cred_ex_id}/send-request", data
                 )
+            elif message["by_format"]["cred_offer"].get("vc_di"):
+                await self.admin_POST(
+                    f"/issue-credential-2.0/records/{cred_ex_id}/send-request"
+                )
 
         elif state == "done":
             pass
@@ -309,6 +326,9 @@ class AriesAgent(DemoAgent):
         if rev_reg_id and cred_rev_id:
             self.log(f"Revocation registry ID: {rev_reg_id}")
             self.log(f"Credential revocation ID: {cred_rev_id}")
+
+    async def handle_issue_credential_v2_0_vc_di(self, message):
+        self.log(f"Handle VC_DI Credential: message = {message}")
 
     async def handle_issue_credential_v2_0_ld_proof(self, message):
         self.log(f"LD Credential: message = {message}")
@@ -597,6 +617,10 @@ class AriesAgent(DemoAgent):
         auto_accept: bool = True,
         display_qr: bool = False,
         reuse_connections: bool = False,
+        multi_use_invitations: bool = False,
+        public_did_connections: bool = False,
+        emit_did_peer_2: bool = False,
+        emit_did_peer_4: bool = False,
         wait: bool = False,
     ):
         self._connection_ready = asyncio.Future()
@@ -609,6 +633,10 @@ class AriesAgent(DemoAgent):
                 use_did_exchange,
                 auto_accept=auto_accept,
                 reuse_connections=reuse_connections,
+                multi_use_invitations=multi_use_invitations,
+                public_did_connections=public_did_connections,
+                emit_did_peer_2=emit_did_peer_2,
+                emit_did_peer_4=emit_did_peer_4,
             )
 
         if display_qr:
@@ -684,6 +712,9 @@ class AriesAgent(DemoAgent):
 
         return result
 
+    def set_cred_type(self, new_cred_type: str):
+        self.cred_type = new_cred_type
+
 
 class AgentContainer:
     def __init__(
@@ -708,6 +739,10 @@ class AgentContainer:
         arg_file: str = None,
         endorser_role: str = None,
         reuse_connections: bool = False,
+        multi_use_invitations: bool = False,
+        public_did_connections: bool = False,
+        emit_did_peer_2: bool = False,
+        emit_did_peer_4: bool = False,
         taa_accept: bool = False,
         anoncreds_legacy_revocation: str = None,
         log_file: str = None,
@@ -747,6 +782,10 @@ class AgentContainer:
                 self.cred_type = CRED_FORMAT_INDY
 
         self.reuse_connections = reuse_connections
+        self.multi_use_invitations = multi_use_invitations
+        self.public_did_connections = public_did_connections
+        self.emit_did_peer_2 = emit_did_peer_2
+        self.emit_did_peer_4 = emit_did_peer_4
         self.exchange_tracing = False
 
         # local agent(s)
@@ -897,6 +936,10 @@ class AgentContainer:
                 schema_name, schema_attrs
             )
 
+    def set_cred_type(self, new_cred_type: str):
+        self.cred_type = new_cred_type
+        self.agent.set_cred_type(new_cred_type)
+
     async def create_schema_and_cred_def(
         self,
         schema_name: str,
@@ -905,9 +948,7 @@ class AgentContainer:
     ):
         if not self.public_did:
             raise Exception("Can't create a schema/cred def without a public DID :-(")
-        if self.cred_type in [
-            CRED_FORMAT_INDY,
-        ]:
+        if self.cred_type in [CRED_FORMAT_INDY, CRED_FORMAT_VC_DI]:
             # need to redister schema and cred def on the ledger
             self.cred_def_id = await self.agent.create_schema_and_cred_def(
                 schema_name,
@@ -953,9 +994,7 @@ class AgentContainer:
     ):
         log_status("#13 Issue credential offer to X")
 
-        if self.cred_type in [
-            CRED_FORMAT_INDY,
-        ]:
+        if self.cred_type in [CRED_FORMAT_INDY, CRED_FORMAT_VC_DI]:
             cred_preview = {
                 "@type": CRED_PREVIEW_TYPE,
                 "attributes": cred_attrs,
@@ -1015,9 +1054,7 @@ class AgentContainer:
     async def request_proof(self, proof_request, explicit_revoc_required: bool = False):
         log_status("#20 Request proof of degree from alice")
 
-        if self.cred_type in [
-            CRED_FORMAT_INDY,
-        ]:
+        if self.cred_type in [CRED_FORMAT_INDY, CRED_FORMAT_VC_DI]:
             indy_proof_request = {
                 "name": (
                     proof_request["name"]
@@ -1100,9 +1137,7 @@ class AgentContainer:
 
         # log_status(f">>> last proof received: {self.agent.last_proof_received}")
 
-        if self.cred_type in [
-            CRED_FORMAT_INDY,
-        ]:
+        if self.cred_type in [CRED_FORMAT_INDY, CRED_FORMAT_VC_DI]:
             # return verified status
             return self.agent.last_proof_received["verified"]
 
@@ -1140,6 +1175,8 @@ class AgentContainer:
         auto_accept: bool = True,
         display_qr: bool = False,
         reuse_connections: bool = False,
+        multi_use_invitations: bool = False,
+        public_did_connections: bool = False,
         wait: bool = False,
     ):
         return await self.agent.generate_invitation(
@@ -1147,6 +1184,10 @@ class AgentContainer:
             auto_accept=auto_accept,
             display_qr=display_qr,
             reuse_connections=reuse_connections,
+            multi_use_invitations=multi_use_invitations,
+            public_did_connections=public_did_connections,
+            emit_did_peer_2=self.emit_did_peer_2,
+            emit_did_peer_4=self.emit_did_peer_4,
             wait=wait,
         )
 
@@ -1174,7 +1215,9 @@ class AgentContainer:
         """
         return await self.agent.admin_GET(path, text=text, params=params)
 
-    async def admin_POST(self, path, data=None, text=False, params=None) -> dict:
+    async def admin_POST(
+        self, path, data=None, text=False, params=None, raise_error=True
+    ) -> dict:
         """Execute an admin POST request in the context of the current wallet.
 
         path = /path/of/request
@@ -1182,7 +1225,9 @@ class AgentContainer:
         text = True if the expected response is text, False if json data
         params = any additional parameters to pass with the request
         """
-        return await self.agent.admin_POST(path, data=data, text=text, params=params)
+        return await self.agent.admin_POST(
+            path, data=data, text=text, params=params, raise_error=raise_error
+        )
 
     async def admin_PATCH(self, path, data=None, text=False, params=None) -> dict:
         """Execute an admin PATCH request in the context of the current wallet.
@@ -1336,18 +1381,34 @@ def arg_parser(ident: str = None, port: int = 8020):
             "Specify the role ('author' or 'endorser') which this agent will "
             "participate. Authors will request transaction endorement from an "
             "Endorser. Endorsers will endorse transactions from Authors, and "
-            "may write their own  transactions to the ledger. If no role "
+            "may write their own transactions to the ledger. If no role "
             "(or 'none') is specified then the endorsement protocol will not "
-            " be used and this agent will write transactions to the ledger "
+            "be used and this agent will write transactions to the ledger "
             "directly."
+        ),
+    )
+    parser.add_argument(
+        "--reuse-connections",
+        action="store_true",
+        help=(
+            "Reuse connections by generating a reusable invitation. "
+            "Only applicable for AIP 2.0 (OOB) connections."
         ),
     )
     if (not ident) or (ident != "alice"):
         parser.add_argument(
-            "--reuse-connections",
+            "--public-did-connections",
             action="store_true",
             help=(
-                "Reuse connections by using Faber public key in the invite. "
+                "Use Faber public key in the invite. "
+                "Only applicable for AIP 2.0 (OOB) connections."
+            ),
+        )
+        parser.add_argument(
+            "--multi-use-invitations",
+            action="store_true",
+            help=(
+                "Create multi-use invitations. "
                 "Only applicable for AIP 2.0 (OOB) connections."
             ),
         )
@@ -1385,6 +1446,16 @@ def arg_parser(ident: str = None, port: int = 8020):
             "Specifies a custom logging level as one of: "
             "('debug', 'info', 'warning', 'error', 'critical')"
         ),
+    )
+    parser.add_argument(
+        "--emit-did-peer-2",
+        action="store_true",
+        help="Emit did:peer:2 DID in DID exchange",
+    )
+    parser.add_argument(
+        "--emit-did-peer-4",
+        action="store_true",
+        help="Emit did:peer:4 DID in DID exchange",
     )
     return parser
 
@@ -1458,11 +1529,13 @@ async def create_agent_with_args(args, ident: str = None, extra_args: list = Non
 
     if "cred_type" in args and args.cred_type not in [
         CRED_FORMAT_INDY,
+        CRED_FORMAT_VC_DI,
     ]:
         public_did = None
         aip = 20
     elif "cred_type" in args and args.cred_type in [
         CRED_FORMAT_INDY,
+        CRED_FORMAT_VC_DI,
     ]:
         public_did = True
     else:
@@ -1474,12 +1547,25 @@ async def create_agent_with_args(args, ident: str = None, extra_args: list = Non
     )
 
     reuse_connections = "reuse_connections" in args and args.reuse_connections
-    if reuse_connections and aip != 20:
-        raise Exception("Can only specify `--reuse-connections` with AIP 2.0")
+    # if reuse_connections and aip != 20:
+    #     raise Exception("Can only specify `--reuse-connections` with AIP 2.0")
+    multi_use_invitations = (
+        "multi_use_invitations" in args and args.multi_use_invitations
+    )
+    if multi_use_invitations and aip != 20:
+        raise Exception("Can only specify `--multi-use-invitations` with AIP 2.0")
+    public_did_connections = (
+        "public_did_connections" in args and args.public_did_connections
+    )
+    if public_did_connections and aip != 20:
+        raise Exception("Can only specify `--public-did-connections` with AIP 2.0")
 
     anoncreds_legacy_revocation = None
     if "anoncreds_legacy_revocation" in args and args.anoncreds_legacy_revocation:
         anoncreds_legacy_revocation = args.anoncreds_legacy_revocation
+
+    emit_did_peer_2 = "emit_did_peer_2" in args and args.emit_did_peer_2
+    emit_did_peer_4 = "emit_did_peer_4" in args and args.emit_did_peer_4
 
     agent = AgentContainer(
         genesis_txns=genesis,
@@ -1501,6 +1587,10 @@ async def create_agent_with_args(args, ident: str = None, extra_args: list = Non
         aip=aip,
         endorser_role=args.endorser_role,
         reuse_connections=reuse_connections,
+        multi_use_invitations=multi_use_invitations,
+        public_did_connections=public_did_connections,
+        emit_did_peer_2=emit_did_peer_2,
+        emit_did_peer_4=emit_did_peer_4,
         taa_accept=args.taa_accept,
         anoncreds_legacy_revocation=anoncreds_legacy_revocation,
         log_file=log_file,

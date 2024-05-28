@@ -1,30 +1,27 @@
-from behave import given, when, then
 import json
-from time import sleep
-import time
 
 from bdd_support.agent_backchannel_client import (
-    aries_container_create_schema_cred_def,
-    aries_container_check_exists_cred_def,
-    aries_container_issue_credential,
-    aries_container_receive_credential,
-    read_schema_data,
-    read_credential_data,
     agent_container_DELETE,
     agent_container_GET,
     agent_container_POST,
+    aries_container_check_exists_cred_def,
+    aries_container_create_schema_cred_def,
+    aries_container_issue_credential,
+    aries_container_receive_credential,
     async_sleep,
+    read_credential_data,
+    read_schema_data,
 )
-from runners.agent_container import AgentContainer
+from behave import given, then, when
 from runners.support.agent import (
-    CRED_FORMAT_INDY,
-    CRED_FORMAT_JSON_LD,
-    DID_METHOD_SOV,
     DID_METHOD_KEY,
-    KEY_TYPE_ED255,
     KEY_TYPE_BLS,
     SIG_TYPE_BLS,
 )
+
+
+def is_anoncreds(agent):
+    return agent["agent"].wallet_type == "askar-anoncreds"
 
 
 # This step is defined in another feature file
@@ -52,6 +49,15 @@ def step_impl(context, issuer, schema_name):
 
     context.schema_name = schema_name
     context.cred_def_id = cred_def_id
+
+
+@when('"{issuer}" sets the credential type to {credential_type}')
+def step_impl(context, issuer, credential_type):
+    agent = context.active_agents[issuer]
+
+    agent["agent"].set_cred_type(credential_type)
+
+    assert agent["agent"].cred_type == credential_type
 
 
 @given('"{issuer}" offers a credential with data {credential_data}')
@@ -174,9 +180,14 @@ def step_impl(context, holder):
     print("connection_id:", cred_exchange["cred_ex_record"]["connection_id"])
 
     # revoke the credential
-    revoke_status = agent_container_POST(
+    if is_anoncreds(agent):
+        endpoint = "/anoncreds/revocation/revoke"
+    else:
+        endpoint = "/revocation/revoke"
+
+    agent_container_POST(
         agent["agent"],
-        "/revocation/revoke",
+        endpoint,
         data={
             "rev_reg_id": cred_exchange["indy"]["rev_reg_id"],
             "cred_rev_id": cred_exchange["indy"]["cred_rev_id"],
@@ -674,6 +685,25 @@ def step_impl(context, holder, schema_name, credential_data, issuer):
         + """" is ready to issue a credential for """
         + schema_name
         + '''
+        When "'''
+        + issuer
+        + """" offers a credential with data """
+        + credential_data
+        + '''
+        Then "'''
+        + holder
+        + """" has the credential issued
+    """
+    )
+
+
+@given(
+    '"{holder}" has another issued {schema_name} credential {credential_data} from "{issuer}"'
+)
+def step_impl(context, holder, schema_name, credential_data, issuer):
+    context.execute_steps(
+        # TODO possibly check that the requested schema is "active" (if there are multiple schemas)
+        '''
         When "'''
         + issuer
         + """" offers a credential with data """

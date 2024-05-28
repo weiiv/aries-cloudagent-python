@@ -13,6 +13,7 @@ from anoncreds import (
     CredentialOffer,
     KeyCorrectnessProof,
     Schema,
+    W3cCredential,
 )
 from aries_askar import AskarError
 
@@ -27,6 +28,7 @@ from .base import (
     AnonCredsSchemaAlreadyExists,
     BaseAnonCredsError,
 )
+from .error_messages import ANONCREDS_PROFILE_REQUIRED_MSG
 from .events import CredDefFinishedEvent
 from .models.anoncreds_cred_def import CredDef, CredDefResult
 from .models.anoncreds_schema import AnonCredsSchema, SchemaResult, SchemaState
@@ -97,7 +99,7 @@ class AnonCredsIssuer:
     def profile(self) -> AskarAnoncredsProfile:
         """Accessor for the profile instance."""
         if not isinstance(self._profile, AskarAnoncredsProfile):
-            raise ValueError("AnonCreds interface requires AskarAnoncreds")
+            raise ValueError(ANONCREDS_PROFILE_REQUIRED_MSG)
 
         return self._profile
 
@@ -311,6 +313,15 @@ class AnonCredsIssuer:
         max_cred_num = options.get("max_cred_num", DEFAULT_MAX_CRED_NUM)
         if not isinstance(max_cred_num, int):
             raise ValueError("max_cred_num must be an integer")
+
+        # Don't allow revocable cred def to be created without tails server base url
+        if (
+            not self.profile.settings.get("tails_server_base_url")
+            and support_revocation
+        ):
+            raise AnonCredsIssuerError(
+                "tails_server_base_url not configured. Can't create revocable credential definition."  # noqa: E501
+            )
 
         anoncreds_registry = self.profile.inject(AnonCredsRegistry)
         schema_result = await anoncreds_registry.get_schema(self.profile, schema_id)
@@ -621,6 +632,65 @@ class AnonCredsIssuer:
             credential = await asyncio.get_event_loop().run_in_executor(
                 None,
                 lambda: Credential.create(
+                    cred_def.raw_value,
+                    cred_def_private.raw_value,
+                    credential_offer,
+                    credential_request,
+                    raw_values,
+                ),
+            )
+        except AnoncredsError as err:
+            raise AnonCredsIssuerError("Error creating credential") from err
+
+        return credential.to_json()
+
+    async def create_credential_w3c(
+        self,
+        credential_offer: dict,
+        credential_request: dict,
+        credential_values: dict,
+    ) -> str:
+        """Create Credential."""
+        anoncreds_registry = self.profile.inject(AnonCredsRegistry)
+        schema_id = credential_offer["schema_id"]
+        schema_result = await anoncreds_registry.get_schema(self.profile, schema_id)
+        cred_def_id = credential_offer["cred_def_id"]
+        schema_attributes = schema_result.schema_value.attr_names
+
+        try:
+            async with self.profile.session() as session:
+                cred_def = await session.handle.fetch(CATEGORY_CRED_DEF, cred_def_id)
+                cred_def_private = await session.handle.fetch(
+                    CATEGORY_CRED_DEF_PRIVATE, cred_def_id
+                )
+        except AskarError as err:
+            raise AnonCredsIssuerError(
+                "Error retrieving credential definition"
+            ) from err
+
+        if not cred_def or not cred_def_private:
+            raise AnonCredsIssuerError(
+                "Credential definition not found for credential issuance"
+            )
+
+        raw_values = {}
+        for attribute in schema_attributes:
+            # Ensure every attribute present in schema to be set.
+            # Extraneous attribute names are ignored.
+            try:
+                credential_value = credential_values[attribute]
+            except KeyError:
+                raise AnonCredsIssuerError(
+                    "Provided credential values are missing a value "
+                    f"for the schema attribute '{attribute}'"
+                )
+
+            raw_values[attribute] = str(credential_value)
+
+        try:
+            credential = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: W3cCredential.create(
                     cred_def.raw_value,
                     cred_def_private.raw_value,
                     credential_offer,

@@ -6,21 +6,22 @@ import logging
 from aiohttp import web
 from aiohttp_apispec import (
     docs,
+    match_info_schema,
     querystring_schema,
     request_schema,
-    match_info_schema,
     response_schema,
 )
 from marshmallow import fields, validate
 from marshmallow.exceptions import ValidationError
 
+from ....admin.decorators.auth import tenant_authentication
 from ....admin.request_context import AdminRequestContext
 from ....messaging.models.base import BaseModelError
 from ....messaging.models.openapi import OpenAPISchema
 from ....messaging.valid import UUID4_EXAMPLE, UUID4_VALIDATE
 from ....storage.error import StorageError, StorageNotFoundError
 from ...didcomm_prefix import DIDCommPrefix
-from ...didexchange.v1_0.manager import DIDXManagerError
+from ...didexchange.v1_0.manager import DIDXManager, DIDXManagerError
 from .manager import OutOfBandManager, OutOfBandManagerError
 from .message_types import SPEC_URI
 from .messages.invitation import HSProto, InvitationMessage, InvitationMessageSchema
@@ -44,6 +45,12 @@ class InvitationCreateQueryStringSchema(OpenAPISchema):
     multi_use = fields.Boolean(
         required=False,
         metadata={"description": "Create invitation for multiple use (default false)"},
+    )
+    create_unique_did = fields.Boolean(
+        required=False,
+        metadata={
+            "description": "Create unique DID for this invitation (default false)"
+        },
     )
 
 
@@ -98,6 +105,21 @@ class InvitationCreateRequestSchema(OpenAPISchema):
         metadata={
             "description": "Whether to use public DID in invitation",
             "example": False,
+        },
+    )
+    use_did = fields.Str(
+        required=False,
+        metadata={
+            "description": "DID to use in invitation",
+            "example": "did:example:123",
+        },
+    )
+    use_did_method = fields.Str(
+        required=False,
+        validate=validate.OneOf(DIDXManager.SUPPORTED_USE_DID_METHODS),
+        metadata={
+            "description": "DID method to use in invitation",
+            "example": "did:peer:2",
         },
     )
     metadata = fields.Dict(
@@ -204,6 +226,7 @@ class InvitationRecordMatchInfoSchema(OpenAPISchema):
 @querystring_schema(InvitationCreateQueryStringSchema())
 @request_schema(InvitationCreateRequestSchema())
 @response_schema(InvitationRecordSchema(), description="")
+@tenant_authentication
 async def invitation_create(request: web.BaseRequest):
     """Request handler for creating a new connection invitation.
 
@@ -221,6 +244,8 @@ async def invitation_create(request: web.BaseRequest):
     handshake_protocols = body.get("handshake_protocols", [])
     service_accept = body.get("accept")
     use_public_did = body.get("use_public_did", False)
+    use_did = body.get("use_did")
+    use_did_method = body.get("use_did_method")
     metadata = body.get("metadata")
     my_label = body.get("my_label")
     alias = body.get("alias")
@@ -231,18 +256,23 @@ async def invitation_create(request: web.BaseRequest):
 
     multi_use = json.loads(request.query.get("multi_use", "false"))
     auto_accept = json.loads(request.query.get("auto_accept", "null"))
+    create_unique_did = json.loads(request.query.get("create_unique_did", "false"))
 
     profile = context.profile
+
     oob_mgr = OutOfBandManager(profile)
     try:
         invi_rec = await oob_mgr.create_invitation(
             my_label=my_label,
             auto_accept=auto_accept,
             public=use_public_did,
+            use_did=use_did,
+            use_did_method=use_did_method,
             hs_protos=[
                 h for h in [HSProto.get(hsp) for hsp in handshake_protocols] if h
             ],
             multi_use=multi_use,
+            create_unique_did=create_unique_did,
             attachments=attachments,
             metadata=metadata,
             alias=alias,
@@ -265,6 +295,7 @@ async def invitation_create(request: web.BaseRequest):
 @querystring_schema(InvitationReceiveQueryStringSchema())
 @request_schema(InvitationMessageSchema())
 @response_schema(OobRecordSchema(), 200, description="")
+@tenant_authentication
 async def invitation_receive(request: web.BaseRequest):
     """Request handler for receiving a new connection invitation.
 
@@ -309,6 +340,7 @@ async def invitation_receive(request: web.BaseRequest):
 @docs(tags=["out-of-band"], summary="Delete records associated with invitation")
 @match_info_schema(InvitationRecordMatchInfoSchema())
 @response_schema(InvitationRecordResponseSchema(), description="")
+@tenant_authentication
 async def invitation_remove(request: web.BaseRequest):
     """Request handler for removing a invitation related conn and oob records.
 

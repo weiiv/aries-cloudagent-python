@@ -1,14 +1,17 @@
 """Wallet admin routes."""
 
+import asyncio
 import json
 import logging
 from typing import List, Optional, Tuple, Union
 
 from aiohttp import web
 from aiohttp_apispec import docs, querystring_schema, request_schema, response_schema
-
 from marshmallow import fields, validate
 
+from aries_cloudagent.connections.base_manager import BaseConnectionManager
+
+from ..admin.decorators.auth import tenant_authentication
 from ..admin.request_context import AdminRequestContext
 from ..config.injection_context import InjectionContext
 from ..connections.models.conn_record import ConnRecord
@@ -36,10 +39,10 @@ from ..messaging.valid import (
     INDY_RAW_PUBLIC_KEY_VALIDATE,
     JWT_EXAMPLE,
     JWT_VALIDATE,
-    SD_JWT_EXAMPLE,
-    SD_JWT_VALIDATE,
     NON_SD_LIST_EXAMPLE,
     NON_SD_LIST_VALIDATE,
+    SD_JWT_EXAMPLE,
+    SD_JWT_VALIDATE,
     IndyDID,
     StrOrDictField,
     Uri,
@@ -54,16 +57,24 @@ from ..protocols.endorse_transaction.v1_0.util import (
     is_author_role,
 )
 from ..resolver.base import ResolverError
+from ..storage.base import BaseStorage
 from ..storage.error import StorageError, StorageNotFoundError
+from ..storage.record import StorageRecord
+from ..storage.type import RECORD_TYPE_ACAPY_UPGRADING
 from ..wallet.jwt import jwt_sign, jwt_verify
 from ..wallet.mdoc import mdoc_sign, mdoc_verify
 from ..wallet.sd_jwt import sd_jwt_sign, sd_jwt_verify
+from .anoncreds_upgrade import (
+    UPGRADING_RECORD_IN_PROGRESS,
+    upgrade_wallet_to_anoncreds_if_requested,
+)
 from .base import BaseWallet
 from .did_info import DIDInfo
-from .did_method import KEY, SOV, DIDMethod, DIDMethods, HolderDefinedDid
+from .did_method import KEY, PEER2, PEER4, SOV, DIDMethod, DIDMethods, HolderDefinedDid
 from .did_posture import DIDPosture
 from .error import WalletError, WalletNotFoundError
 from .key_type import BLS12381G2, ED25519, KeyTypes
+from .singletons import UpgradeInProgressSingleton
 from .util import EVENT_LISTENER_PATTERN
 
 LOGGER = logging.getLogger(__name__)
@@ -114,6 +125,10 @@ class DIDSchema(OpenAPISchema):
             "description": "Key type associated with the DID",
             "example": ED25519.key_type,
         },
+    )
+    metadata = fields.Dict(
+        required=False,
+        metadata={"description": "Additional metadata associated with the DID"},
     )
 
 
@@ -309,7 +324,9 @@ class DIDListQueryStringSchema(OpenAPISchema):
     )
     method = fields.Str(
         required=False,
-        validate=validate.OneOf([KEY.method_name, SOV.method_name]),
+        validate=validate.OneOf(
+            [KEY.method_name, SOV.method_name, PEER2.method_name, PEER4.method_name]
+        ),
         metadata={
             "example": KEY.method_name,
             "description": (
@@ -391,7 +408,7 @@ class DIDCreateSchema(OpenAPISchema):
         required=False,
         metadata={
             "description": (
-                "Optional seed to use for DID, Must beenabled in configuration before"
+                "Optional seed to use for DID, Must be enabled in configuration before"
                 " use."
             ),
             "example": "000000000000000000000000Trustee1",
@@ -433,12 +450,14 @@ def format_did_info(info: DIDInfo):
             "posture": DIDPosture.get(info.metadata).moniker,
             "key_type": info.key_type.key_type,
             "method": info.method.method_name,
+            "metadata": info.metadata,
         }
 
 
 @docs(tags=["wallet"], summary="List wallet DIDs")
 @querystring_schema(DIDListQueryStringSchema())
 @response_schema(DIDListSchema, 200, description="")
+@tenant_authentication
 async def wallet_did_list(request: web.BaseRequest):
     """Request handler for searching wallet DIDs.
 
@@ -546,6 +565,7 @@ async def wallet_did_list(request: web.BaseRequest):
 @docs(tags=["wallet"], summary="Create a local DID")
 @request_schema(DIDCreateSchema())
 @response_schema(DIDResultSchema, 200, description="")
+@tenant_authentication
 async def wallet_create_did(request: web.BaseRequest):
     """Request handler for creating a new local DID in the wallet.
 
@@ -606,9 +626,58 @@ async def wallet_create_did(request: web.BaseRequest):
         if not wallet:
             raise web.HTTPForbidden(reason="No wallet available")
         try:
-            info = await wallet.create_local_did(
-                method=method, key_type=key_type, seed=seed, did=did
-            )
+            is_did_peer_2 = method.method_name == PEER2.method_name
+            is_did_peer_4 = method.method_name == PEER4.method_name
+            if is_did_peer_2 or is_did_peer_4:
+                base_conn_mgr = BaseConnectionManager(context.profile)
+
+                options = body.get("options", {})
+
+                connection_id = options.get("conn_id")
+                my_endpoint = options.get("endpoint")
+                mediation_id = options.get("mediation_id")
+
+                # FIXME:
+                # This logic is duplicated in BaseConnectionManager
+                # It should be refactored into one method.
+                ###################################################
+
+                my_endpoints = []
+                if my_endpoint:
+                    my_endpoints = [my_endpoint]
+                else:
+                    default_endpoint = context.profile.settings.get("default_endpoint")
+                    if default_endpoint:
+                        my_endpoints.append(default_endpoint)
+                    my_endpoints.extend(
+                        context.profile.settings.get("additional_endpoints", [])
+                    )
+
+                mediation_records = []
+                if connection_id:
+                    conn_rec = await ConnRecord.retrieve_by_id(session, connection_id)
+                    mediation_records = await base_conn_mgr._route_manager.mediation_records_for_connection(  # noqa: E501
+                        context.profile,
+                        conn_rec,
+                        mediation_id,
+                        or_default=True,
+                    )
+
+                ###################################################
+
+                info = (
+                    await base_conn_mgr.create_did_peer_2(
+                        my_endpoints, mediation_records
+                    )
+                    if is_did_peer_2
+                    else await base_conn_mgr.create_did_peer_4(
+                        my_endpoints, mediation_records
+                    )
+                )
+            else:
+                info = await wallet.create_local_did(
+                    method=method, key_type=key_type, seed=seed, did=did
+                )
 
         except WalletError as err:
             raise web.HTTPBadRequest(reason=err.roll_up) from err
@@ -618,6 +687,7 @@ async def wallet_create_did(request: web.BaseRequest):
 
 @docs(tags=["wallet"], summary="Fetch the current public DID")
 @response_schema(DIDResultSchema, 200, description="")
+@tenant_authentication
 async def wallet_get_public_did(request: web.BaseRequest):
     """Request handler for fetching the current public DID.
 
@@ -648,6 +718,7 @@ async def wallet_get_public_did(request: web.BaseRequest):
 @querystring_schema(AttribConnIdMatchInfoSchema())
 @querystring_schema(MediationIDSchema())
 @response_schema(DIDResultSchema, 200, description="")
+@tenant_authentication
 async def wallet_set_public_did(request: web.BaseRequest):
     """Request handler for setting the current public DID.
 
@@ -722,8 +793,11 @@ async def wallet_set_public_did(request: web.BaseRequest):
 
     if not create_transaction_for_endorser:
         return web.json_response({"result": format_did_info(info)})
-
     else:
+        # DID is already posted to ledger
+        if not attrib_def:
+            return web.json_response({"result": format_did_info(info)})
+
         transaction_mgr = TransactionManager(context.profile)
         try:
             transaction = await transaction_mgr.create_record(
@@ -737,7 +811,7 @@ async def wallet_set_public_did(request: web.BaseRequest):
             try:
                 transaction, transaction_request = await transaction_mgr.create_request(
                     transaction=transaction,
-                    # TODO see if we need to parameterize these params
+                    # TODO see if we need to parametrize these params
                     # expires_time=expires_time,
                 )
             except (StorageError, TransactionManagerError) as err:
@@ -890,6 +964,7 @@ async def promote_wallet_public_did(
 @querystring_schema(CreateAttribTxnForEndorserOptionSchema())
 @querystring_schema(AttribConnIdMatchInfoSchema())
 @response_schema(WalletModuleResponseSchema(), description="")
+@tenant_authentication
 async def wallet_set_did_endpoint(request: web.BaseRequest):
     """Request handler for setting an endpoint for a DID.
 
@@ -994,7 +1069,7 @@ async def wallet_set_did_endpoint(request: web.BaseRequest):
             try:
                 transaction, transaction_request = await transaction_mgr.create_request(
                     transaction=transaction,
-                    # TODO see if we need to parameterize these params
+                    # TODO see if we need to parametrize these params
                     # expires_time=expires_time,
                 )
             except (StorageError, TransactionManagerError) as err:
@@ -1008,6 +1083,7 @@ async def wallet_set_did_endpoint(request: web.BaseRequest):
 @docs(tags=["wallet"], summary="Create a EdDSA jws using did keys with a given payload")
 @request_schema(JWSCreateSchema)
 @response_schema(WalletModuleResponseSchema(), description="")
+@tenant_authentication
 async def wallet_jwt_sign(request: web.BaseRequest):
     """Request handler for jws creation using did.
 
@@ -1081,6 +1157,7 @@ async def wallet_mdoc_sign(request: web.BaseRequest):
 )
 @request_schema(SDJWSCreateSchema)
 @response_schema(WalletModuleResponseSchema(), description="")
+@tenant_authentication
 async def wallet_sd_jwt_sign(request: web.BaseRequest):
     """Request handler for sd-jws creation using did.
 
@@ -1117,6 +1194,7 @@ async def wallet_sd_jwt_sign(request: web.BaseRequest):
 @docs(tags=["wallet"], summary="Verify a EdDSA jws using did keys with a given JWS")
 @request_schema(JWSVerifySchema())
 @response_schema(JWSVerifyResponseSchema(), 200, description="")
+@tenant_authentication
 async def wallet_jwt_verify(request: web.BaseRequest):
     """Request handler for jws validation using did.
 
@@ -1175,6 +1253,7 @@ async def wallet_mdoc_verify(request: web.BaseRequest):
 )
 @request_schema(SDJWSVerifySchema())
 @response_schema(SDJWSVerifyResponseSchema(), 200, description="")
+@tenant_authentication
 async def wallet_sd_jwt_verify(request: web.BaseRequest):
     """Request handler for sd-jws validation using did.
 
@@ -1197,6 +1276,7 @@ async def wallet_sd_jwt_verify(request: web.BaseRequest):
 @docs(tags=["wallet"], summary="Query DID endpoint in wallet")
 @querystring_schema(DIDQueryStringSchema())
 @response_schema(DIDEndpointSchema, 200, description="")
+@tenant_authentication
 async def wallet_get_did_endpoint(request: web.BaseRequest):
     """Request handler for getting the current DID endpoint from the wallet.
 
@@ -1230,6 +1310,7 @@ async def wallet_get_did_endpoint(request: web.BaseRequest):
 @docs(tags=["wallet"], summary="Rotate keypair for a DID not posted to the ledger")
 @querystring_schema(DIDQueryStringSchema())
 @response_schema(WalletModuleResponseSchema(), description="")
+@tenant_authentication
 async def wallet_rotate_did_keypair(request: web.BaseRequest):
     """Request handler for rotating local DID keypair.
 
@@ -1263,6 +1344,74 @@ async def wallet_rotate_did_keypair(request: web.BaseRequest):
             raise web.HTTPBadRequest(reason=err.roll_up) from err
 
     return web.json_response({})
+
+
+class UpgradeVerificationSchema(OpenAPISchema):
+    """Parameters and validators for triggering an upgrade to anoncreds."""
+
+    wallet_name = fields.Str(
+        required=True,
+        metadata={
+            "description": "Name of wallet to upgrade to anoncreds",
+            "example": "base-wallet",
+        },
+    )
+
+
+class UpgradeResultSchema(OpenAPISchema):
+    """Result schema for upgrade."""
+
+
+@docs(
+    tags=["anoncreds - wallet upgrade"],
+    summary="""
+        Upgrade the wallet from askar to anoncreds - Be very careful with this! You 
+        cannot go back! See migration guide for more information.
+    """,
+)
+@querystring_schema(UpgradeVerificationSchema())
+@response_schema(UpgradeResultSchema(), description="")
+@tenant_authentication
+async def upgrade_anoncreds(request: web.BaseRequest):
+    """Request handler for triggering an upgrade to anoncreds.
+
+    Args:
+        request: aiohttp request object
+
+    Returns:
+        An empty JSON response
+
+    """
+    context: AdminRequestContext = request["context"]
+    profile = context.profile
+
+    if profile.settings.get("wallet.name") != request.query.get("wallet_name"):
+        raise web.HTTPBadRequest(
+            reason="Wallet name parameter does not match the agent which triggered the upgrade"  # noqa: E501
+        )
+
+    if profile.settings.get("wallet.type") == "askar-anoncreds":
+        raise web.HTTPBadRequest(reason="Wallet type is already anoncreds")
+
+    async with profile.session() as session:
+        storage = session.inject(BaseStorage)
+        upgrading_record = StorageRecord(
+            RECORD_TYPE_ACAPY_UPGRADING,
+            UPGRADING_RECORD_IN_PROGRESS,
+        )
+        await storage.add_record(upgrading_record)
+        is_subwallet = context.metadata and "wallet_id" in context.metadata
+        asyncio.create_task(
+            upgrade_wallet_to_anoncreds_if_requested(profile, is_subwallet)
+        )
+        UpgradeInProgressSingleton().set_wallet(profile.name)
+
+    return web.json_response(
+        {
+            "success": True,
+            "message": f"Upgrade to anoncreds has been triggered for wallet {profile.name}",  # noqa: E501
+        }
+    )
 
 
 def register_events(event_bus: EventBus):
@@ -1313,7 +1462,7 @@ async def on_register_nym_event(profile: Profile, event: Event):
             try:
                 transaction, transaction_request = await transaction_mgr.create_request(
                     transaction=transaction,
-                    # TODO see if we need to parameterize these params
+                    # TODO see if we need to parametrize these params
                     # expires_time=expires_time,
                 )
             except (StorageError, TransactionManagerError) as err:
@@ -1359,6 +1508,7 @@ async def register(app: web.Application):
                 "/wallet/get-did-endpoint", wallet_get_did_endpoint, allow_head=False
             ),
             web.patch("/wallet/did/local/rotate-keypair", wallet_rotate_did_keypair),
+            web.post("/anoncreds/wallet/upgrade", upgrade_anoncreds),
         ]
     )
 
@@ -1379,6 +1529,16 @@ def post_process_routes(app: web.Application):
                     "https://github.com/hyperledger/indy-sdk/tree/"
                     "master/docs/design/003-wallet-storage"
                 ),
+            },
+        }
+    )
+    app._state["swagger_dict"]["tags"].append(
+        {
+            "name": "anoncreds - wallet upgrade",
+            "description": "Anoncreds wallet upgrade",
+            "externalDocs": {
+                "description": "Specification",
+                "url": "https://hyperledger.github.io/anoncreds-spec",
             },
         }
     )

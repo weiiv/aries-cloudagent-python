@@ -217,7 +217,7 @@ class SchemasInputDescriptorFilterSchema(BaseModelSchema):
 
     @pre_load
     def extract_info(self, data, **kwargs):
-        """deserialize."""
+        """Deserialize."""
         new_data = {}
         if isinstance(data, dict):
             if "uri_groups" in data:
@@ -444,7 +444,7 @@ class DIFFieldSchema(BaseModelSchema):
 
 
 class Constraints(BaseModel):
-    """Single Constraints which describes InputDescriptor's Contraint field."""
+    """Single Constraints which describes InputDescriptor's Constraint field."""
 
     class Meta:
         """Constraints metadata."""
@@ -824,12 +824,10 @@ class PresentationSubmissionSchema(BaseModelSchema):
 
     id = fields.Str(
         required=False,
-        validate=UUID4_VALIDATE,
         metadata={"description": "ID", "example": UUID4_EXAMPLE},
     )
     definition_id = fields.Str(
         required=False,
-        validate=UUID4_VALIDATE,
         metadata={"description": "DefinitionID", "example": UUID4_EXAMPLE},
     )
     descriptor_maps = fields.List(
@@ -890,7 +888,7 @@ class DIFOptions(BaseModel):
 
 
 class DIFOptionsSchema(BaseModelSchema):
-    """Schema for options required for the Prover to fulfill the Verifier's request."""
+    """Schema for options required for the Prover to fulfil the Verifier's request."""
 
     class Meta:
         """DIFOptionsSchema metadata."""
