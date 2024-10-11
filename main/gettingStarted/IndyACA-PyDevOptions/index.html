@@ -9,22 +9,22 @@
       
       
       
-        <link rel="prev" href="../AriesAgentArchitecture/">
+        <link rel="prev" href="../YourOwnACA-PyAgent/">
       
       
-        <link rel="next" href="../AriesDeveloperDemos/">
+        <link rel="next" href="../DIDcommMsgs/">
       
       
       <link rel="icon" href="https://raw.githubusercontent.com/hyperledger/aries-rfcs/main/collateral/favicon.ico">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.36">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.39">
     
     
       
-        <title>Aries Messaging - Hyperledger Aries ACA-Py Docs</title>
+        <title>ACA-Py Developer Options - ACA-Py Docs</title>
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.06209087.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.8c3ca2c6.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
@@ -72,7 +72,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#an-overview-of-aries-messaging" class="md-skip">
+        <a href="#what-should-i-work-on-options-for-aca-pyindy-developers" class="md-skip">
           Skip to content
         </a>
       
@@ -92,7 +92,7 @@
 
 <header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../.." title="Hyperledger Aries ACA-Py Docs" class="md-header__button md-logo" aria-label="Hyperledger Aries ACA-Py Docs" data-md-component="logo">
+    <a href="../.." title="ACA-Py Docs" class="md-header__button md-logo" aria-label="ACA-Py Docs" data-md-component="logo">
       
   <img src="https://raw.githubusercontent.com/hyperledger/aries-rfcs/main/collateral/Hyperledger_Aries_Logo_White.png" alt="logo">
 
@@ -105,13 +105,13 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Hyperledger Aries ACA-Py Docs
+            ACA-Py Docs
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Aries Messaging
+              ACA-Py Developer Options
             
           </span>
         </div>
@@ -188,13 +188,13 @@
     
     
       <div class="md-header__source">
-        <a href="https://github.com/hyperledger/aries-cloudagent-python" title="Go to repository" class="md-source" data-md-component="source">
+        <a href="https://github.com/openwallet-foundation/acapy" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
   </div>
   <div class="md-source__repository">
-    hyperledger/aries-cloudagent-python
+    openwallet-foundation/acapy
   </div>
 </a>
       </div>
@@ -250,7 +250,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../demo/Aries-Workshop/" class="md-tabs__link">
+        <a href="../../demo/ACA-Py-Workshop/" class="md-tabs__link">
           
   
   Demos
@@ -363,22 +363,22 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../.." title="Hyperledger Aries ACA-Py Docs" class="md-nav__button md-logo" aria-label="Hyperledger Aries ACA-Py Docs" data-md-component="logo">
+    <a href="../.." title="ACA-Py Docs" class="md-nav__button md-logo" aria-label="ACA-Py Docs" data-md-component="logo">
       
   <img src="https://raw.githubusercontent.com/hyperledger/aries-rfcs/main/collateral/Hyperledger_Aries_Logo_White.png" alt="logo">
 
     </a>
-    Hyperledger Aries ACA-Py Docs
+    ACA-Py Docs
   </label>
   
     <div class="md-nav__source">
-      <a href="https://github.com/hyperledger/aries-cloudagent-python" title="Go to repository" class="md-source" data-md-component="source">
+      <a href="https://github.com/openwallet-foundation/acapy" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
   </div>
   <div class="md-source__repository">
-    hyperledger/aries-cloudagent-python
+    openwallet-foundation/acapy
   </div>
 </a>
     </div>
@@ -988,11 +988,11 @@
   
   
     <li class="md-nav__item">
-      <a href="../../demo/Aries-Workshop/" class="md-nav__link">
+      <a href="../../demo/ACA-Py-Workshop/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    Hyperledger Aries / AnonCreds Workshop
+    ACA-Py / AnonCreds Workshop
   </span>
   
 
@@ -1030,7 +1030,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../demo/AriesOpenAPIDemo/" class="md-nav__link">
+      <a href="../../demo/OpenAPIDemo/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1135,11 +1135,11 @@
   
   
     <li class="md-nav__item">
-      <a href="../../demo/AriesPostmanDemo/" class="md-nav__link">
+      <a href="../../demo/PostmanDemo/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    Aries Using Postman Demo
+    ACA-Py Using Postman Demo
   </span>
   
 
@@ -1231,7 +1231,7 @@
         
   
   <span class="md-ellipsis">
-    Becoming an Indy/Aries Developer
+    Becoming an ACA-Py Developer
   </span>
   
 
@@ -1269,11 +1269,11 @@
   
   
     <li class="md-nav__item">
-      <a href="../AriesBasics/" class="md-nav__link">
+      <a href="../ACA-PyBasics/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    Hyperledger Aries Basics
+    ACA-Py Basics
   </span>
   
 
@@ -1311,11 +1311,11 @@
   
   
     <li class="md-nav__item">
-      <a href="../AriesBigPicture/" class="md-nav__link">
+      <a href="../ACA-PyBigPicture/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    Aries - The Big Picture
+    ACA-Py - The Big Picture
   </span>
   
 
@@ -1332,46 +1332,15 @@
   
   
     <li class="md-nav__item">
-      <a href="../AriesAgentArchitecture/" class="md-nav__link">
+      <a href="../ACA-PyAgentArchitecture/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    Aries Architecture
+    ACA-Py Architecture
   </span>
   
 
       </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-    
-  
-  
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
-        
-  
-  <span class="md-ellipsis">
-    Aries Messaging
-  </span>
-  
-
-      </a>
-      
     </li>
   
 
@@ -1384,11 +1353,32 @@
   
   
     <li class="md-nav__item">
-      <a href="../AriesDeveloperDemos/" class="md-nav__link">
+      <a href="../DIDCommMessaging/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    Aries Developer Demos
+    ACA-Py Messaging
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ACA-PyDeveloperDemos/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    ACA-Py Developer Demos
   </span>
   
 
@@ -1468,7 +1458,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../YourOwnAriesAgent/" class="md-nav__link">
+      <a href="../YourOwnACA-PyAgent/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1486,18 +1476,103 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../IndyAriesDevOptions/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    ACA-Py Developer Options
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   <span class="md-ellipsis">
-    Aries Developer Options
+    ACA-Py Developer Options
   </span>
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#building-decentralized-identity-applications" class="md-nav__link">
+    <span class="md-ellipsis">
+      Building Decentralized Identity Applications
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contributing-to-aca-py" class="md-nav__link">
+    <span class="md-ellipsis">
+      Contributing to ACA-Py
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#supporting-additional-ledgers" class="md-nav__link">
+    <span class="md-ellipsis">
+      Supporting Additional Ledgers
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#other-agent-frameworks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Other Agent Frameworks
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#working-at-the-cryptographic-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      Working at the Cryptographic Layer
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1552,7 +1627,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../AriesRoutingExample/" class="md-nav__link">
+      <a href="../DIDCommRoutingExample/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2138,7 +2213,7 @@
         
   
   <span class="md-ellipsis">
-    Hyperledger Code of Conduct
+    Code of Conduct
   </span>
   
 
@@ -2259,6 +2334,59 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#building-decentralized-identity-applications" class="md-nav__link">
+    <span class="md-ellipsis">
+      Building Decentralized Identity Applications
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contributing-to-aca-py" class="md-nav__link">
+    <span class="md-ellipsis">
+      Contributing to ACA-Py
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#supporting-additional-ledgers" class="md-nav__link">
+    <span class="md-ellipsis">
+      Supporting Additional Ledgers
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#other-agent-frameworks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Other Agent Frameworks
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#working-at-the-cryptographic-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      Working at the Cryptographic Layer
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -2275,21 +2403,23 @@
   
 
 
-<h1 id="an-overview-of-aries-messaging">An overview of Aries messaging<a class="headerlink" href="#an-overview-of-aries-messaging" title="Permanent link">&para;</a></h1>
-<p>Aries Agents communicate with each other via a message mechanism called DIDComm (DID Communication). DIDComm enables secure, asynchronous, end-to-end encrypted messaging between agents, with messages (usually) routed through some configuration of intermediary agents. Aries agents use (an early instance of) the <a href="https://identity.foundation/peer-did-method-spec">did:peer DID method</a>, which uses DIDs that are not published to a public ledger, but only shared privately between the communicating parties - usually just two agents.</p>
-<p>Given the underlying secure messaging layer (routing and encryption covered later in the "Deeper Dive" sections), DIDComm protocols define standard sets of messages to accomplish a task. For example:</p>
-<ul>
-<li>The "establish connection" protocol enables two agents to establish a connection through a series of messages - an invitation, a connection request and a connection response.</li>
-<li>The "issue credential" protocol enables an agent to issue a credential to another agent.</li>
-<li>The "present proof" protocol enables an agent to request and receive a proof from another agent.</li>
-</ul>
-<p>Each protocol has a specification that defines the protocol's messages, one or more roles for the different participants, and a state machine that defines the state transitions triggered by the messages. For example, in the connection protocol, the messages are "invitation", "connectionRequest" and "connectionResponse", the roles are "inviter" and "invitee", and the states are "invited", "requested" and "connected". Each participant in an instance of a protocol tracks the state based on the messages they've seen.</p>
-<p>Code for protocols are implemented as externalized modules from the core agent code so that they can be included (or not) in an agent deployment. The protocol code must include the definition of a state object for the protocol, handlers for the protocol messages, and the events and administrative messages that are available to the controller to inject business logic into the running of the protocol. Each administrative message becomes part of the REST API exposed by the agent instance.</p>
-<p>Developers building Aries agents for a particular use case will generally focus on building controllers. They must understand the protocols that they are going to need, including the events the controller will receive, and the protocol's administrative messages exposed via the REST API. From time to time, such Aries agent developers might need to implement their own protocols.</p>
-<blockquote>
-<p>Back to the <a href="../">Aries Developer - Getting Started Guide</a>.
-</p>
-</blockquote>
+<h1 id="what-should-i-work-on-options-for-aca-pyindy-developers">What should I work on? Options for ACA-Py/Indy Developers<a class="headerlink" href="#what-should-i-work-on-options-for-aca-pyindy-developers" title="Permanent link">&para;</a></h1>
+<p>Now that you know the basics of the ACA-Py/Indy eco-system, what do you want to work on? There are many projects at different levels of the eco-system you could choose to work on, and many ways to contribute to the community.</p>
+<p>This is an important summary for newcomers, as often the temptation is to start at a level far below where you plan to focus your attention. Too often devs coming into the community start at "the blockchain"; at <code>indy-node</code> (the Indy public ledger) or the <code>indy-sdk</code>. That is far below where the majority of developers will work and is not really that helpful if what you really want to do is build decentralized identity applications.</p>
+<p>In the following, we go through the layers from the top of the stack to the bottom. Our expectation is that the majority of developers will work at the application level, and there will be fewer contributing developers each layer down you go. This is not to dissuade anyone from contributing at the lower levels, but rather to say if you are not going to contribute at the lower levels, you don't need to everything about it. It's much like web development - you don't need to know TCP/IP to build web apps.</p>
+<h2 id="building-decentralized-identity-applications">Building Decentralized Identity Applications<a class="headerlink" href="#building-decentralized-identity-applications" title="Permanent link">&para;</a></h2>
+<p>If you just want to build enterprise applications on top of the decentralized identity-related Hyperledger projects, you can start with building cloud-based controller apps using any language you want, and deploying your code with an instance of the code in the <a href="https://github.com/openwallet-foundation/acapy">ACA-Py repository</a>.</p>
+<p>If you want to build a mobile agent, there are open source options available, including <a href="https://github.com/openwallet-foundation/bifold-wallet">Bifold Wallet</a>, which is built on <a href="https://github.com/openwallet-foundation/credo-ts">Credo-TS</a>. Both are OpenWallet Projects.</p>
+<p>As a developer building applications that use/embed ACA-Py agents, you should join the <a href="https://wiki.hyperledger.org/display/ARIES/Aries+Working+Group">Aries Working Group</a>'s weekly calls and watch the <a href="https://github.com/hyperledger/aries-rfcs">aries-rfcs</a> repo to see what protocols are being added and extended. In some cases, you may need to create your own protocols to be added to this repository, and if you are looking for interoperability, you should specify those protocols in an open way, involving the community.</p>
+<p>Note that if building apps is what you want to do, you don't need to do a deep dive into the inner workings of ACA-Py, ledgers or mobile wallets. You need to know the concepts, but it's not a requirement that you know the code base intimately.</p>
+<h2 id="contributing-to-aca-py">Contributing to ACA-Py<a class="headerlink" href="#contributing-to-aca-py" title="Permanent link">&para;</a></h2>
+<p>Of course as you build applications using ACA-Py, you will no doubt find deficiencies in the code and features you want added. Contributions to this repo will <strong>always</strong> be welcome.</p>
+<h2 id="supporting-additional-ledgers">Supporting Additional Ledgers<a class="headerlink" href="#supporting-additional-ledgers" title="Permanent link">&para;</a></h2>
+<p>ACA-Py currently supports a handful of public verifiable data registries and verifiable credentials exchange. A project goals to be "ledger"-agnostic, and to support a range of verifiable data registries. We're making it easier and easier to support other verifiable data registries, and would welcome assistance in adding new ones.</p>
+<h2 id="other-agent-frameworks">Other Agent Frameworks<a class="headerlink" href="#other-agent-frameworks" title="Permanent link">&para;</a></h2>
+<p>Although controllers for an ACA-Py instance can be written in any language, there is definitely a place for functionality equivalent (and better) to what is in this repo in other languages. Use the example provided by the ACA-Py demo, evolve that using a different language, and as you discover better ways to do things, discuss and share those improvements in the broader ACA-Py community so that this and other code bases improve.</p>
+<h2 id="working-at-the-cryptographic-layer">Working at the Cryptographic Layer<a class="headerlink" href="#working-at-the-cryptographic-layer" title="Permanent link">&para;</a></h2>
+<p>Finally, at the deepest level, and core to all of the projects is the cryptography underpinning ACA-Py. If you are a cryptographer, that's where you want to be - and we want you there.</p>
 
 
 
@@ -2325,7 +2455,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../AriesAgentArchitecture/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Aries Architecture">
+          <a href="../YourOwnACA-PyAgent/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Making Your Own ACA-Py Agent">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -2335,20 +2465,20 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Aries Architecture
+                Making Your Own ACA-Py Agent
               </div>
             </div>
           </a>
         
         
           
-          <a href="../AriesDeveloperDemos/" class="md-footer__link md-footer__link--next" aria-label="Next: Aries Developer Demos">
+          <a href="../DIDcommMsgs/" class="md-footer__link md-footer__link--next" aria-label="Next: DIDComm Messaging">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Aries Developer Demos
+                DIDComm Messaging
               </div>
             </div>
             <div class="md-footer__button md-icon">
@@ -2385,7 +2515,7 @@
     <script id="__config" type="application/json">{"base": "../..", "features": ["content.code.copy", "navigation.expand", "navigation.footer", "navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.tracking", "toc.follow"], "search": "../../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.56dfad97.min.js"></script>
+      <script src="../../assets/javascripts/bundle.525ec568.min.js"></script>
       
     
   </body>
